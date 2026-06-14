@@ -1,15 +1,3 @@
-# Project planning docs
-DOCS/
-
-# Agent instruction files
-AGENTS.md
-CLAUDE.md
-.cursorrules
-.cursor/
-.github/copilot-instructions.md
-opencode.json
-opencode.jsonc
-
 # Agent runtime artifacts
 .opencode/
 claude/
