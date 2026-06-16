@@ -11,7 +11,7 @@ Implementar sistema de afinidad y relaciones entre el protagonista y personajes 
 
 **Language/Version**: GDScript (Godot 4.6)
 **Primary Dependencies**: `addons/sprouty_dialogs` (sistema de diálogos), `plan-overworld-exploration.md` (NPCs interactuables)
-**Storage**: Estado de afinidades serializado en save file (JSON)
+**Storage**: Estado de afinidades serializado usando Godot Resources en el save file
 **Testing**: Test scenes in-editor con NPCs de prueba
 **Target Platform**: Windows D3D12
 **Performance Goals**: Cálculo de afinidad <1ms, UI de relaciones carga <100ms
@@ -51,6 +51,39 @@ src/dating/
     └── harem_netori_toggle.gd    # Toggle en pantalla de nueva partida
 ```
 
+## Clean Code Guidelines
+
+### Naming & Style
+- **Clases**: `PascalCase` — `AffinityManager`, `RelationshipState` (enum), `CoupleRegistry`
+- **Variables/métodos**: `snake_case` — `current_affinity`, `add_affinity()`, `can_confess()`
+- **Constantes**: `UPPER_SNAKE_CASE` — `MAX_AFFINITY = 100`, `IN_LOVE_THRESHOLD = 100`
+- **Señales**: `snake_case` en pasado — `affinity_changed`, `confession_accepted`, `date_triggered`
+- **Enums**: `PascalCase` para el tipo, `UPPER_SNAKE_CASE` para valores — `RelationshipState.IN_LOVE`
+
+### Single Responsibility
+- **State** (`affinity_manager`, `couple_registry`): Solo CRUD de datos, sin UI ni diálogos
+- **Dialogue** (`dialogue_option`, `dialogue_condition`): Evaluación de condiciones y datos de opciones
+- **Confession** (`confession_system`): Solo reglas de validación; la escena (`confession_scene`) solo presentación
+- **Harem/Netori** (`harem_handler`, `netori_handler`): Lógica de escenas complejas; disparadas por señales
+- **UI**: Solo muestra datos del state; nunca contiene lógica de afinidad
+
+### Métodos
+- Métodos de afinidad atómicos: `add_affinity()` no debe disparar eventos de cita (eso lo hace `date_manager`)
+- **Guard clauses**: `if character.is_dead: return` al inicio de cualquier operación de afinidad
+- `confession_system.can_confess()` debe ser una función pura sin side effects — solo retorna enum
+- Validación temprana: `subtract_affinity()` chequea `IN_LOVE` antes de modificar
+
+### Godot-Specific
+- `affinity_manager` como Autoload: acceso global sin acoplar escenas
+- `@export var thresholds: Dictionary` para umbrales de afinidad configurables desde el editor
+- Señal `SignalBus.affinity_changed.emit(character_id, old_val, new_val)` para que otros sistemas reaccionen
+- Tipado explícito: `func get_relationship_state(id: String) -> RelationshipState.Enmity`
+
+### Valores configurables
+- Umbrales de afinidad (10, 30, 60, 100) en Resource, no hardcodeados
+- Modificadores de afinidad por opción de diálogo en `dialogue_option.gd` como `@export var modifier: int`
+- Costes y recompensas de citas en `date_event.gd` como Resources
+
 ## Phases
 
 ### Phase 1: Sistema de Afinidad (Fundacional)
@@ -64,7 +97,7 @@ src/dating/
 - [ ] T005 Implementar regla de afinidad negativa: permitir valores <0 con deuda. Método `subtract_affinity(character_id, amount)` que puede bajar a negativo. Si afinidad <0, estado = ENMITY
 - [ ] T006 Implementar regla "Enamorado": cuando `relationship_state == IN_LOVE`, bloquear `subtract_affinity` (no baja más). Si Netori=true y personaje casado, sí puede bajar si el cónyuge se entera
 - [ ] T007 Crear `romance_config.gd` — Resource: harem_enabled (bool, default false), netori_enabled (bool, default false). Se setea al inicio de partida, inmutable después
-- [ ] T008 Implementar serialización: guardar `affinity_manager` + `romance_config` + `couple_registry` en save JSON
+- [ ] T008 Implementar serializacion: guardar `affinity_manager` + `romance_config` + `couple_registry` usando `inst_to_dict` en el save Resource
 
 ### Phase 2: Opciones de Diálogo Condicionales
 

@@ -11,7 +11,7 @@ Implementar el flujo principal del juego: Modo Historia lineal con capítulos, d
 
 **Language/Version**: GDScript (Godot 4.6)
 **Primary Dependencies**: Todos los planes anteriores. `plan-creature-integration.md`, `plan-gameplay-deckbuilder.md`, `plan-overworld-exploration.md`, `plan-dating-sim.md`
-**Storage**: Save files en JSON (3 perfiles), meta-progresión en archivo compartido (JSON)
+**Storage**: Save files usando Godot Resources (3 perfiles), meta-progresion en Resource compartido
 **Testing**: Test scenes in-editor + playthroughs manuales
 **Target Platform**: Windows D3D12
 **Performance Goals**: Carga de save <1s, generación de mapa Roguelike <500ms, transición historia↔Roguelike <3s
@@ -55,6 +55,40 @@ src/progression/
     └── meta_progress_ui.gd       # Pantalla de progreso: puntos, desbloqueos, Ascensión
 ```
 
+## Clean Code Guidelines
+
+### Naming & Style
+- **Clases**: `PascalCase` — `SaveManager`, `StoryManager`, `MetaProgress`, `NGPlusHandler`
+- **Variables/métodos**: `snake_case` — `current_chapter`, `legacy_points`, `save()`, `load()`
+- **Constantes**: `UPPER_SNAKE_CASE` — `MAX_PROFILES = 3`, `MAX_ASCENSION = 20`
+- **Señales**: `snake_case` en pasado — `game_saved`, `chapter_completed`, `run_finished`
+- **Flags de historia**: `snake_case` — `MET_MISTY`, `BEAT_GYM_1`, `MEGA_UNLOCKED`
+
+### Single Responsibility
+- **Save** (`save/`): Solo serialización/deserialización; sin lógica de juego
+- **Story** (`story/`): Solo progresión de capítulos y flags; sin UI
+- **Meta** (`meta/`): Solo Legacy Points y desbloqueos; independiente de perfiles
+- **NG+** (`ng_plus/`): Solo reseteo de estado; delegar a cada manager su propio reset
+- `save_manager` no debe conocer detalles de `affinity_manager` — cada sistema serializa su propia data
+
+### Métodos
+- `save()` debe ser atómico: juntar data de todos los sistemas, serializar, escribir — sin pasos intermedios
+- **Guard clauses**: `if profile_id >= MAX_PROFILES: push_error("…"); return` al inicio
+- `save_migration.gd` debe ser una cadena de transformaciones (`v1→v2`, `v2→v3`) independientes
+- Métodos de cálculo de Legacy Points extraídos a `_calculate_base_score()`, `_apply_multipliers()`
+
+### Godot-Specific
+- `save_manager` como Autoload para acceso global
+- `story_manager` como Autoload — único punto de verdad para progreso de historia
+- `@export var auto_save_on_zone_change: bool = true` para comportamiento configurable
+- Señal `SignalBus.save_requested.emit()` → cada sistema responde con su dictionary de datos
+- Usar `ConfigFile` o Resource con serializacion via `inst_to_dict`/`dict_to_inst` para persistencia; wrapper en helper para testing
+
+### Manejo de errores
+- `save()` y `load()` con try/catch o validación de retorno; nunca crashear por save corrupto
+- Si un save falla al cargar: mostrar error descriptivo, no cargar estado parcial
+- `save_migration` con logs de qué versión se migró y resultado
+
 ## Phases
 
 ### Phase 1: Gestión de Guardado (Fundacional)
@@ -63,13 +97,13 @@ src/progression/
 
 - [ ] T001 Crear `save_data.gd` — Resource con toda la data serializable de una partida:
   - story_progress: capítulo, zona, flags, personajes_conocidos
-  - team_state: 3 CharacterVersion actuales
+  - team_state: 3 CharacterData actuales
   - affinity_data: todas las afinidades y parejas
   - inventory: Pokédólares, objetos, materiales de evolución
   - romance_config: harem, netori
   - roguelike_run: estado de run pausada (opcional)
 - [ ] T002 Crear `save_manager.gd` — Autoload. Métodos: `save(profile_id)`, `load(profile_id) → SaveData`, `delete(profile_id)`, `get_all_profiles() → Array`
-- [ ] T003 Implementar serialización JSON de `SaveData`: usar `JSON.stringify` con `inst_to_dict` para Resources, `dict_to_inst` para cargar
+- [ ] T003 Implementar serializacion de `SaveData`: usar `inst_to_dict` para Resources, `dict_to_inst` para cargar
 - [ ] T004 Crear `profile_manager.gd` — UI para crear/borrar/seleccionar perfiles. Máximo 3 perfiles. Muestra: nombre, capítulo actual, tiempo jugado, fecha último guardado
 - [ ] T005 Implementar auto-guardado: al cambiar de zona, al completar combate, al entrar/salir de Roguelike (solo entre nodos, no mid-combate)
 - [ ] T006 Crear `save_migration.gd` — Detectar versión de save, migrar campos si cambia la estructura en updates futuros
@@ -88,7 +122,7 @@ src/progression/
 
 **Purpose**: Sistema de secuencias narrativas.
 
-- [ ] T012 Crear `cutscene_player.gd` — Secuenciador de eventos: diálogos, movimientos de cámara, animaciones de sprites, sonidos. Lee archivos de cutscene (JSON o .tres con secuencia de comandos)
+- [ ] T012 Crear `cutscene_player.gd` — Secuenciador de eventos: dialogos, movimientos de camara, animaciones de sprites, sonidos. Lee archivos de cutscene (`.tres` con secuencia de comandos)
 - [ ] T013 Integrar con `addons/sprouty_dialogs` para cutscenes de diálogo: cargar diálogos desde el sistema de sprouty
 - [ ] T014 Eventos de historia que disparan cambios de criatura del protagonista: trigger → `creature_instance.evolve()` o `team_state.swap_creature()`
 
@@ -113,7 +147,7 @@ src/progression/
   - `legacy_points` (int)
   - `unlocked_cards` (array de move_ids)
   - `unlocked_relics` (array de item_ids)
-  - `unlocked_characters` (array de character_version_ids)
+  - `unlocked_characters` (array de character_ids)
   - `max_ascension_level` (int 0-20)
 - [ ] T019 Implementar ganancia de Legacy Points al finalizar run: fórmula basada en `acto_alcanzado * 10 + enemigos_derrotados * 2 + cartas_en_mazo * 1`
 - [ ] T020 Crear `unlock_tree.gd` — Define dependencias de desbloqueo: ciertos personajes/cartas requieren desbloqueos previos. Método: `can_unlock(unlock_id) → bool`
@@ -151,7 +185,7 @@ src/progression/
 
 **Purpose**: Conocer personajes en la historia los desbloquea para Roguelike.
 
-- [ ] T029 Al completar capítulo donde se conoce a un personaje: `meta_progress.unlocked_characters.append(character_version_id)`
+- [ ] T029 Al completar capítulo donde se conoce a un personaje: `meta_progress.unlocked_characters.append(character_id)`
 - [ ] T030 Verificar que solo personajes desbloqueados (vía historia O meta-progresión) aparecen como seleccionables al iniciar run Roguelike
 - [ ] T031 Eventos de historia que desbloquean mecánicas especiales: setear flags `MEGA_UNLOCKED`, `Z_MOVES_UNLOCKED`, `GMAX_UNLOCKED`, `TERA_UNLOCKED` en `story_flags` → disponibles en Roguelike
 

@@ -18,15 +18,19 @@
   - `sprouty_dialogs` — graph-based dialog system with translation support (used for all game dialogue)
   - `sound_manager` — audio: sound effects, music, ambient
   - `input_helper` — input handling utilities
-- **`DOCS/`** — design documents (gitignored). Contains 5 specs + 5 implementation plans:
+- **`DOCS/`** — design documents (gitignored). Contains 9 specs + 9 implementation plans:
   - `spec-gameplay-deckbuilder.md` — combat system (moves, decks, Furor bar, map)
   - `spec-creature-integration.md` — creatures, evolutions, card pools, teams of 3
   - `spec-overworld-exploration.md` — 2D-HD movement, zones, NPCs, day/night cycle
   - `spec-dating-sim.md` — affinity, relationships, Harem/Netori, dates
   - `spec-meta-progression.md` — story mode, Roguelike access, NG+, Ascension, save system
+  - `spec-furor-system.md` — Furor bar, Mega/Z-Move/G-Max/Tera mechanics
+  - `spec-revelaciones.md` — card variant system (exclusive/evolution cards)
+  - `spec-inventory-items.md` — inventory, held items, consumables, Pokédollars
+  - `spec-enemy-catalog.md` — enemy trainers, AI patterns, encounter pools, difficulty scaling
   - Matching `plan-*.md` files with phased implementation tasks
 - **`src/`** (planned, not yet created) — will contain gameplay scripts under `wip/src/`:
-  - `creatures/`, `combat/`, `overworld/`, `dating/`, `progression/`
+  - `creatures/`, `combat/`, `overworld/`, `dating/`, `progression/`, `inventory/`, `enemies/`
 
 ## Key architectural decisions (non-obvious)
 

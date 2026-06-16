@@ -150,43 +150,6 @@ Cuando todo el equipo del jugador llega a 0 HP, la run termina. Se muestra un re
 
 ---
 
-### User Story 6 - Mecánicas Especiales y Barra de Furor (Priority: P3)
-
-A lo largo de la historia se desbloquean mecánicas especiales de combate: Mega Evolución, Movimientos Z, Gigantamax/Dynamax, y Teracrestalización. Estas mecánicas no tienen límite fijo de usos por combate, sino que funcionan con una **Barra de Furor**. La barra tiene un máximo de 10 puntos. El furor se acumula durante el combate al realizar acciones (usar movimientos, recibir daño, curarse, etc.). Cada mecánica especial consume X puntos de furor. El jugador puede usar múltiples mecánicas en un mismo combate —incluso combinarlas en un mismo ataque— mientras tenga suficiente furor. Esto permite escenarios como un Rayquaza "D-Max Tera Flying Mega Rayquaza usando el Z-Move volador", donde un Pokémon acumula varias mecánicas simultáneamente.
-
-**Why this priority**: Añaden profundidad táctica y recompensa por progreso en la historia. El sistema de furor convierte las mecánicas en un recurso estratégico en lugar de un botón de "usar una vez".
-
-**Independent Test**: Se puede testear habilitando manualmente las mecánicas, generando furor durante un combate de prueba, y verificando la activación, coste y combinación de mecánicas.
-
-**Acceptance Scenarios**:
-
-1. **Scenario**: Acumulación de furor al jugar movimientos
-   - **Given** el jugador inicia un combate con 0 de furor
-   - **When** usa un movimiento de ataque
-   - **Then** la barra de furor aumenta en +1 (o la cantidad configurada según la acción)
-
-2. **Scenario**: Activar Mega Evolución gastando furor
-   - **Given** el jugador tiene 5 puntos de furor y la Mega Evolución cuesta 4
-   - **When** activa Mega Evolución en un Pokémon compatible
-   - **Then** se consumen 4 puntos de furor, el sprite del Pokémon cambia, sus stats aumentan, y su mazo se reemplaza por la versión mega-evolucionada por el resto del combate
-
-3. **Scenario**: Combinar múltiples mecánicas en un mismo ataque
-   - **Given** el jugador tiene 8 puntos de furor, Mega Evolución activa, y desea usar Teracrestalización (coste 3) + Movimiento Z (coste 2)
-   - **When** selecciona un movimiento de tipo Volador y aplica ambas mecánicas
-   - **Then** se consumen 5 puntos de furor (3+2), el Pokémon se teracrestaliza a tipo Volador, y el movimiento se potencia como Z-Move todo en el mismo ataque
-
-4. **Scenario**: Furor insuficiente bloquea la mecánica
-   - **Given** el jugador tiene 2 puntos de furor y la mecánica cuesta 5
-   - **When** intenta activarla
-   - **Then** la mecánica no se activa y se muestra feedback de "Furor insuficiente"
-
-5. **Scenario**: Furor se resetea al final del combate
-   - **Given** el jugador termina un combate con 7 puntos de furor
-   - **When** inicia el siguiente combate
-   - **Then** la barra de furor vuelve a 0
-
----
-
 ### Edge Cases
 
 - **Mano y mazo vacíos al inicio del turno**: Los movimientos en la pila de descarte regresan al mazo, se barajea y se da una nueva mano.
@@ -197,10 +160,6 @@ A lo largo de la historia se desbloquean mecánicas especiales de combate: Mega 
 - **Objeto equipado y movimiento con efectos contradictorios**: Se activa primero el objeto equipado, luego el movimiento.
 - **Generador produce camino sin salida al Líder de Gimnasio**: El generador NO puede crear un camino sin salida. Es una restricción del algoritmo de generación.
 - **Cambio de Pokémon activo durante el turno**: El jugador puede alternar entre los Pokémon de su equipo (máximo 3) en cualquier momento del turno; cada uno mantiene su mano, energía y mazo independientes.
-- **Furor máximo alcanzado**: La barra de furor no puede exceder 10 puntos. El exceso de furor generado se pierde.
-- **Mecánicas especiales combinadas**: Las mecánicas se aplican en el orden de activación. Si dos mecánicas afectan el mismo stat, sus efectos se suman multiplicativamente.
-- **Furor entre combates**: El furor siempre se resetea a 0 al finalizar un combate, sin excepciones.
-
 ---
 
 ## Requirements *(mandatory)*
@@ -220,23 +179,20 @@ A lo largo de la historia se desbloquean mecánicas especiales de combate: Mega 
 - **FR-011**: El sistema DEBE soportar un equipo de 1 a 3 Pokémon por run, cada uno con su mazo de movimientos independiente.
 - **FR-012**: El sistema DEBE soportar al menos 3 actos, cada uno con su propio pool de entrenadores enemigos, élites y Líder de Gimnasio.
 - **FR-013**: El sistema DEBE ser exclusivamente single-player, sin componentes multijugador ni scores online.
-- **FR-014**: El sistema DEBE desbloquear mecánicas especiales de combate progresivamente según el momento de la historia: Mega Evolución, Movimientos Z, Gigantamax/Dynamax, y Teracrestalización. Las mecánicas se activan gastando puntos de Furor, no tienen límite fijo de usos por combate.
-- **FR-015**: El sistema DEBE escalar la dificultad incrementalmente basándose en el nivel del jugador (ej. Líderes de Gimnasio siempre 2 niveles por encima del jugador).
-- **FR-016**: El sistema DEBE mantener una barra de Furor con máximo 10 puntos que: (a) se acumula al realizar acciones en combate (usar movimientos, recibir daño, curarse), (b) se gasta al activar mecánicas especiales según el coste de cada una, (c) se resetea a 0 al finalizar cada combate.
+- **FR-014**: El sistema DEBE escalar la dificultad incrementalmente basándose en el nivel del jugador (ej. Líderes de Gimnasio siempre 2 niveles por encima del jugador).
 
 ### Key Entities
 
 - **Move (Movimiento)**: Representa un ataque o técnica Pokémon jugable. Atributos: nombre, descripción, coste de energía, tipo elemental, categoría (Físico / Especial / Estado), rareza (Básico / Común / Poco común / Raro), efectos al usar.
 - **Deck (Mazo)**: Colección de movimientos de un Pokémon en la run. Se divide en tres pilas: `drawPile`, `hand`, `discardPile`.
 - **Pokémon (en combate)**: Estado de un Pokémon del equipo en combate. Atributos: criatura asociada, HP actual, HP máximo, mazo, objeto equipado, buffs/debuffs activos, estado alterado actual.
-- **TrainerState (Estado del Entrenador)**: Atributos globales del jugador en la run: energía actual, energía máxima, furor actual (0-10), Pokédólares, mochila de objetos equipados, mecánicas especiales desbloqueadas.
+- **TrainerState (Estado del Entrenador)**: Atributos globales del jugador en la run: energía actual, energía máxima, Pokédólares, mochila de objetos equipados.
 - **EnemyTrainer (Entrenador Enemigo)**: Oponente en combate con su propio equipo Pokémon. Atributos: nombre, clase (Entrenador / Élite / Líder), Pokémon activo (con HP, intención, buffs/debuffs), patrón de IA.
 - **HeldItem (Objeto Equipado)**: Objeto pasivo equipable a un Pokémon con efecto permanente durante la run. Se activa en hooks definidos (inicio de combate, inicio de turno, al recibir daño, al debilitar enemigo, etc.).
 - **StatusCondition (Estado Alterado)**: Condición que afecta a un Pokémon (Envenenado, Quemado, Paralizado, Congelado, Dormido, Confundido). Puede ser infligida por movimientos o habilidades.
 - **StatModifier (Buff/Debuff)**: Modificador temporal de stats: Ataque ↑↓, Defensa ↑↓, Velocidad ↑↓. Afectan el daño infligido y recibido.
 - **MapNode (Nodo del Mapa)**: Un encuentro en el mapa de la Liga. Atributos: tipo, posición (acto, fila, columna), conexiones a nodos siguientes, estado (visitado / disponible / bloqueado).
-- **SpecialMechanic (Mecánica Especial)**: Habilidad desbloqueable por historia: Mega Evolución, Movimiento Z, Gigantamax/Dynamax, Teracrestalización. Atributos: nombre, requisito de historia, coste de furor, efecto en combate. Pueden combinarse entre sí.
-- **FurorBar (Barra de Furor)**: Recurso compartido del equipo en combate. Máximo: 10 puntos. Se acumula al usar movimientos, recibir daño, curarse, etc. Se consume al activar mecánicas especiales. Se resetea a 0 al finalizar cada combate.
+> Las mecánicas especiales (Mega Evolución, Movimientos Z, Gigantamax/Dynamax, Teracrestalización) y la Barra de Furor están definidas en `specs/spec-furor-system.md`.
 
 ---
 

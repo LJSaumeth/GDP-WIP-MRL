@@ -184,13 +184,11 @@ En puntos específicos de la historia, el protagonista puede cambiar de criatura
 
 ### Key Entities
 
-- **Creature (Criatura)**: Define la identidad del compañero. Atributos: ID, nombre, tipo(s) elemental(es), sprite, stats base (HP, ATK, DEF, SPD), pool de cartas (lista de IDs), evoluciones posibles (lista de evoluciones).
-- **CharacterVersion (Versión de Personaje)**: Entidad jugable = Personaje + Criatura específica. Atributos: character_id, creature_id, sprite_personaje, sprite_criatura, mazo_inicial, stats_derivados.
-- **Evolution (Evolución)**: Regla de transformación de una criatura a otra. Atributos: criatura_origen, criatura_destino, nivel_requerido, material_requerido, tipo (nivel, historia, ramificada).
-- **EvolutionMaterial (Material de Evolución)**: Item necesario para evolucionar. Atributos: ID, nombre, sprite, descripción, método de obtención (historia, tienda, recompensa).
-- **Team (Equipo)**: Composición de 3 personajes para combate. Atributos: miembros (array de 3 CharacterVersion), activo (índice del personaje actualmente seleccionado en UI).
-- **CreaturePool (Pool de Criatura)**: Conjunto de cartas asociadas a una criatura. Atributos: criatura_id, cartas_comunes, cartas_exclusivas, cartas_desbloqueables_por_evolución.
-- **CharacterLevel (Nivel de Personaje)**: Progresión numérica. Atributos: nivel_actual, experiencia_actual, experiencia_para_siguiente, evoluciones_disponibles.
+- **CharacterData (Datos de Personaje)**: Resource unico que define un personaje jugable con su criatura. Fusiona identidad + stats + pool + evoluciones en un solo `.tres`. Atributos: `id` (String, ej: "prota_pikachu"), `display_name`, `character_id` (String, ej: "protagonist", agrupa versiones del mismo personaje), `is_protagonist`, `character_sprite`, `creature_sprite`, `types[]`, `base_hp`, `base_atk`, `base_def`, `base_spd`, `move_pool_ids[]` (IDs de cartas), `evolution_options[]` (Array[Dictionary] con `{dest_id, required_level, required_material_id, evo_type}` — LEVEL/STORY/BRANCHED).
+- **EvolutionMaterial (Material de Evolución)**: Resource `.tres` necesario para evolucionar. Atributos: `id`, `display_name`, `description`, `sprite_path`. No se consume al usarse; se obtiene en la historia.
+- **Team (Equipo)**: Composicion de 3 CharacterData para combate. Atributos: `members` (array[3] de `CharacterData`), `active_index` (int).
+- **CharacterInstance (Instancia de Personaje)**: Estado runtime de un personaje durante el juego. Atributos: `current_character_id` (String, cambia al evolucionar), `level`, `xp`, `evolution_history` (Array[String] de character_ids recorridos). Referencia al `CharacterData` via `character_database.get_character()`.
+- **CharacterRoster (Roster)**: Registro de todos los `CharacterData` desbloqueados por el jugador (via historia o meta-progresion). Metodos: `unlock(character_id)`, `get_unlocked() → Array[CharacterData]`.
 
 ---
 

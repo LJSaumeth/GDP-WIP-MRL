@@ -62,6 +62,40 @@ src/overworld/
     └── zone_name_display.gd      # Muestra nombre de zona al entrar (fade in/out)
 ```
 
+## Clean Code Guidelines
+
+### Naming & Style
+- **Clases**: `PascalCase` — `OverworldPlayer`, `HD2DCamera`, `Interactable`, `ZoneManager`
+- **Variables/métodos**: `snake_case` — `move_speed`, `current_zone`, `transition_to()`, `on_interact()`
+- **Constantes**: `UPPER_SNAKE_CASE` — `WALK_SPEED = 200`, `RUN_SPEED = 400`, `FADE_DURATION = 0.5`
+- **Señales**: `snake_case` en pasado — `zone_entered`, `interaction_triggered`, `encounter_started`
+- **Nodos de zona**: `PascalCase` descriptivo — `SpawnPoint_Plaza`, `Trigger_Ruta1_Salida`
+
+### Single Responsibility
+- **Player** (`player/`): Solo input, movimiento y animación; sin lógica de interacción
+- **Camera** (`camera/`): Solo framing y depth-sorting; sin lógica de juego
+- **Interaction** (`interaction/`): `interactable` define qué se puede interactuar; `detector` encuentra; `prompt` muestra
+- **Zones** (`zones/`): `zone_manager` solo carga/descarga; no mezclar con lógica de encuentros
+- `npc_overworld.gd` delega diálogos a `sprouty_dialogs`, afinidad a `affinity_manager` — nunca los implementa
+
+### Métodos
+- `overworld_player._physics_process()` debe delegar a `_handle_input()`, `_update_animation()`, `_check_transitions()`
+- **Guard clauses**: `if not is_active: return` al inicio de `_physics_process`
+- `interaction_detector` debe mantener lista ordenada sin recalcular cada frame (cache + dirty flag)
+- `zone_manager.transition_to()` con estados: IDLE → FADING_OUT → LOADING → FADING_IN — máquina de estados simple
+
+### Godot-Specific
+- `zone_manager` como Autoload para transiciones globales
+- `@onready var sprite := $Sprite3D` y `@onready var anim_player := $AnimationPlayer`
+- `@export var walk_speed: float = 200.0` para velocidades ajustables por personaje/vehículo
+- `Sprite3D.billboard = BaseMaterial3D.BILLBOARD_ENABLED` para billboarding automático
+- Señales para comunicación: `SignalBus.zone_changed.emit(old_zone, new_zone)` notifica a HUD, encuentros, BGM
+
+### Valores configurables
+- Velocidades (walk/run/vehículos) en `@export` o Resource, nunca hardcodeadas
+- Tasas de encuentro por zona en `encounter_pools.tres` (Resource), no en código
+- Duración de fade, distancia de cámara, ángulo en `camera_zone_config.tres`
+
 ## Phases
 
 ### Phase 1: Movimiento del Personaje (Fundacional)
@@ -114,7 +148,7 @@ src/overworld/
 **Purpose**: Sistema de encuentros que conecta overworld con combate.
 
 - [ ] T022 Crear `encounter_system.gd` — Contador de pasos invisible. Cada paso en zona hostil incrementa contador. Al alcanzar umbral aleatorio (configurable por zona) → trigger encuentro
-- [ ] T023 Definir pools de encuentros por zona: `encounter_pools.json` con `zone_id → [enemy_trainer_ids]` y pesos (probabilidad)
+- [ ] T023 Definir pools de encuentros por zona: `encounter_pools.tres` (Resource) con `zone_id → [enemy_trainer_ids]` y pesos (probabilidad)
 - [ ] T024 Crear `encounter_transition.gd` — Efecto visual al iniciar combate: wipe, destello, transición personalizada. Carga `battle_scene.tscn` pasando datos del encuentro
 - [ ] T025 Crear `encounter_trigger.gd` — Trigger de encuentro fijo (historia). Area3D que al entrar inicia combate con entrenador/enemigos predefinidos (sin aleatoriedad)
 - [ ] T026 Crear `repell_manager.gd` — Estado de repulsor: activo/inactivo, contador de pasos restantes. Cuando activo, `encounter_system` no incrementa contador
